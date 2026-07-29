@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a2540">
-<title>東北角天氣潮汐</title>
+<title>釣魚Pro貢天氣潮汐表</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root {
@@ -132,6 +132,30 @@
   .tide-badge.neap   { background: rgba(111,168,220,.18); color: var(--neap); border:1px solid rgba(111,168,220,.4); }
   .tide-badge.mid    { background: rgba(159,188,216,.15); color: var(--sub); border:1px solid var(--line); }
 
+  /* 釣魚時機 */
+  .fish-wins { display: flex; flex-direction: column; gap: 8px; }
+  .fish-win {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg2); border-radius: 12px; padding: 10px 12px;
+    border-left: 3px solid var(--line);
+  }
+  .fish-win.active { border-left-color: var(--hot); background: rgba(255,122,89,.12); }
+  .fw-time { width: 96px; font-size: 14px; font-weight: 600; flex: 0 0 auto; }
+  .fw-now { display:inline-block; font-size:10px; background:var(--hot); color:#fff; padding:1px 5px; border-radius:6px; font-weight:700; }
+  .fw-mid { flex: 1; }
+  .fw-label { font-size: 14px; font-weight: 600; }
+  .fw-reason { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .fw-grade { font-size: 13px; font-weight: 700; flex: 0 0 auto; padding: 3px 10px; border-radius: 10px; }
+  .fw-grade.g3 { background: rgba(126,224,200,.2); color: var(--cool); }
+  .fw-grade.g2 { background: rgba(77,184,255,.15); color: var(--accent); }
+  /* 當季魚種 */
+  .fish-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 10px; }
+  .fish-item { background: var(--bg2); border-radius: 12px; padding: 11px 13px; }
+  .fish-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .fish-name { font-size: 15px; font-weight: 700; }
+  .fish-type { font-size: 11px; color: var(--warm); background: rgba(255,184,77,.14); padding: 2px 8px; border-radius: 8px; flex: 0 0 auto; }
+  .fish-desc { font-size: 12px; color: var(--sub); margin-top: 5px; line-height: 1.5; }
+
   /* 潮汐 */
   .tide-chart { background: var(--bg2); border-radius: 12px; padding: 14px 10px 8px; margin-bottom: 12px; }
   .tide-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px,1fr)); gap: 8px; }
@@ -213,7 +237,7 @@
 <body>
 <div id="seascape"></div>
 <header>
-  <div class="title"><span class="dot"></span>東北角 · 天氣潮汐</div>
+  <div class="title"><span class="dot"></span>釣魚Pro貢 · 天氣潮汐表</div>
   <div class="updated" id="updated">載入中…</div>
 </header>
 
@@ -599,6 +623,84 @@ function windDir(deg){
 function weekday(d){ return ['日','一','二','三','四','五','六'][d.getDay()]; }
 
 /* ============================================================
+   釣魚時機分析（本地計算）
+   原理：魚在「潮水流動」時最活躍 —— 滿潮/乾潮前後 1~1.5 小時
+   （潮水漲退最快、帶動餌料）；加上晨昏（日出日落前後）為黃金時段；
+   大潮日整體魚況較旺。綜合算出今日建議時段。
+   ============================================================ */
+function fishingWindows(tides, sunriseStr, sunsetStr, tideType){
+  const sr = parseInt(sunriseStr.slice(11,13))+parseInt(sunriseStr.slice(14,16))/60;
+  const ss = parseInt(sunsetStr.slice(11,13))+parseInt(sunsetStr.slice(14,16))/60;
+  const now = new Date().getHours()+new Date().getMinutes()/60;
+
+  const fmt = h => { h=(h+24)%24; let hh=Math.floor(h),mm=Math.round((h-hh)*60); if(mm===60){mm=0;hh=(hh+1)%24;} return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+  const wins = [];
+
+  // 潮汐前後窗口（滿潮/乾潮 前後各約 1.25hr，潮流最強）
+  tides.forEach(t=>{
+    const s=t.t-1.25, e=t.t+1.25;
+    // 判斷是否與晨昏重疊 → 升級為極佳
+    const dawn = (sr>=s-0.5 && sr<=e+0.5);
+    const dusk = (ss>=s-0.5 && ss<=e+0.5);
+    wins.push({
+      start:s, end:e,
+      label:(t.type==='high'?'滿潮':'乾潮')+'前後',
+      reason:'潮水流動、餌料活躍'+((dawn||dusk)?'＋晨昏加乘':''),
+      grade:(dawn||dusk)?3:2
+    });
+  });
+  // 晨昏窗口（若未被潮汐涵蓋，獨立列出）
+  [['日出',sr],['日落',ss]].forEach(([nm,h])=>{
+    const covered = wins.some(w=> h>=w.start-0.3 && h<=w.end+0.3);
+    if(!covered) wins.push({start:h-1, end:h+1, label:nm+'前後', reason:'晨昏魚類覓食高峰', grade:2});
+  });
+
+  // 大潮加成
+  const springBonus = (tideType==='大潮');
+  wins.forEach(w=>{ if(springBonus && w.grade<3) w.grade = Math.min(3, w.grade+0.5); });
+
+  wins.sort((a,b)=>a.start-b.start);
+  // 標記進行中/即將到來
+  wins.forEach(w=>{
+    w.active = (now>=w.start && now<=w.end);
+    w.timeStr = fmt(w.start)+'–'+fmt(w.end);
+  });
+  return { wins, springBonus };
+}
+
+/* 當季魚種介紹（依月份，東北角＋東海岸磯釣/海釣常見）*/
+function seasonalFish(month){
+  // month: 1-12
+  const spring=[
+    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬春主力，喜浪腳白沫帶，需南極蝦誘餌'},
+    {n:'白毛',t:'磯釣',d:'與黑毛同場，拉力強'},
+    {n:'臭肚（象魚）',t:'磯釣',d:'礁區常見，注意背鰭毒棘'},
+  ];
+  const summer=[
+    {n:'白帶魚',t:'船釣/岸拋',d:'夏秋洄游，傍晚到夜間咬況佳'},
+    {n:'竹梭（金梭）',t:'岸拋鐵板',d:'表層掠食，亮色假餌有效'},
+    {n:'紅甘（青甘）',t:'船釣鐵板',d:'外礁大物，拉力猛'},
+    {n:'石斑',t:'礁釣',d:'底棲，藏於礁縫，鮮蝦活餌佳'},
+  ];
+  const autumn=[
+    {n:'白帶魚',t:'船釣/岸拋',d:'秋季盛產，體型佳'},
+    {n:'花身雞魚',t:'沙岸底釣',d:'沙泥交界，群游'},
+    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'秋冬肥美，警覺性高需輕線'},
+    {n:'鬼頭刀',t:'船釣',d:'外海追餌，秋季迴游'},
+  ];
+  const winter=[
+    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬季第一主力，冷水浪區'},
+    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'冬季肥碩'},
+    {n:'加志（黃鰭鯛）',t:'磯釣',d:'礁沙交界，冬季咬況穩'},
+    {n:'石鯛',t:'磯釣',d:'夢幻魚種，硬殼餌，需重裝備'},
+  ];
+  if(month>=3 && month<=5) return {season:'春季', list:spring};
+  if(month>=6 && month<=8) return {season:'夏季', list:summer};
+  if(month>=9 && month<=11) return {season:'秋季', list:autumn};
+  return {season:'冬季', list:winter};
+}
+
+/* ============================================================
    取得資料（Open-Meteo，免 key）
    ============================================================ */
 async function fetchSpot(spot){
@@ -708,6 +810,42 @@ function render(spot, data){
     <div class="card-body">
     <div class="sun-chart">${renderSunArc(daily.sunrise[0], daily.sunset[0])}</div>
     </div>
+  </div>`;
+
+  // 釣魚時機
+  const fw = fishingWindows(tides, daily.sunrise[0], daily.sunset[0], phase.tide);
+  const gradeText = g => g>=3?'極佳':(g>=2.5?'很好':'不錯');
+  const gradeStars = g => '🐟'.repeat(Math.round(g));
+  html += `<div class="card span2">
+    <h2><span class="ic">🎣</span>今日釣魚時機　<span style="color:var(--${fw.springBonus?'spring':'sub'})">${phase.tide}${fw.springBonus?'·魚況旺':''}</span></h2>
+    <div class="fish-wins">`;
+  fw.wins.forEach(w=>{
+    html += `<div class="fish-win ${w.active?'active':''}">
+      <div class="fw-time">${w.timeStr}${w.active?' <span class="fw-now">進行中</span>':''}</div>
+      <div class="fw-mid">
+        <div class="fw-label">${w.label} ${gradeStars(w.grade)}</div>
+        <div class="fw-reason">${w.reason}</div>
+      </div>
+      <div class="fw-grade g${Math.round(w.grade)}">${gradeText(w.grade)}</div>
+    </div>`;
+  });
+  html += `</div>
+    <div class="note">🎣 依潮汐流動與晨昏時段推算。潮水漲退最快的滿潮/乾潮前後，以及日出日落前後，魚類最活躍；大潮日整體魚況較旺。實際咬況仍受天氣、水溫、餌料影響。</div>
+  </div>`;
+
+  // 當季魚種
+  const sf = seasonalFish(today.getMonth()+1);
+  html += `<div class="card span2">
+    <h2><span class="ic">🐠</span>當季魚種介紹　<span style="color:var(--accent)">${sf.season}</span></h2>
+    <div class="fish-list">`;
+  sf.list.forEach(f=>{
+    html += `<div class="fish-item">
+      <div class="fish-head"><span class="fish-name">${f.n}</span><span class="fish-type">${f.t}</span></div>
+      <div class="fish-desc">${f.d}</div>
+    </div>`;
+  });
+  html += `</div>
+    <div class="note">🐠 依當前月份列出東北角與東海岸常見對象魚，實際魚種因地點、潮況而異。注意臭肚、石狗公等具毒棘魚種的處理安全。</div>
   </div>`;
 
   // 未來預報（Yahoo 天氣風格：整週溫度尺度 + 範圍橫條）
