@@ -156,6 +156,18 @@
   .fish-type { font-size: 11px; color: var(--warm); background: rgba(255,184,77,.14); padding: 2px 8px; border-radius: 8px; flex: 0 0 auto; }
   .fish-desc { font-size: 12px; color: var(--sub); margin-top: 5px; line-height: 1.5; }
 
+  /* Windguru */
+  .wg-list { display: flex; flex-direction: column; gap: 14px; }
+  .wg-item { background: var(--bg2); border-radius: 12px; padding: 10px; }
+  .wg-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .wg-name { font-size: 14px; font-weight: 700; }
+  .wg-link { font-size: 12px; color: var(--accent); text-decoration: none; }
+  .wg-link:active { opacity: .6; }
+  .wg-frame {
+    width: 100%; height: 220px; border: none; border-radius: 8px;
+    background: #fff; display: block;
+  }
+
   /* 潮汐 */
   .tide-chart { background: var(--bg2); border-radius: 12px; padding: 14px 10px 8px; margin-bottom: 12px; }
   .tide-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px,1fr)); gap: 8px; }
@@ -339,6 +351,7 @@ const SPOTS = [
   { id:'aodi',     name:'卵澳・澳底', lat:25.0250, lon:121.9560, town:'貢寮' },
   { id:'shitiping',name:'石梯坪',     lat:23.4933, lon:121.5119, town:'豐濱' },
   { id:'qixingtan',name:'七星潭',     lat:24.0287, lon:121.6314, town:'新城' },
+  { id:'tamsui',   name:'淡水',       lat:25.1677, lon:121.4406, town:'淡水' },
 ];
 
 let currentSpot = SPOTS[0].id;
@@ -672,27 +685,49 @@ function fishingWindows(tides, sunriseStr, sunsetStr, tideType){
 function seasonalFish(month){
   // month: 1-12
   const spring=[
-    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬春主力，喜浪腳白沫帶，需南極蝦誘餌'},
-    {n:'白毛',t:'磯釣',d:'與黑毛同場，拉力強'},
-    {n:'臭肚（象魚）',t:'磯釣',d:'礁區常見，注意背鰭毒棘'},
+    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬春主力，喜浪腳白沫帶，南極蝦誘餌打頻率'},
+    {n:'白毛',t:'磯釣',d:'與黑毛同場，拉力更強，愛淺礁激流帶'},
+    {n:'臭肚（象魚）',t:'磯釣',d:'礁區常見，素食性偏好海藻餌，注意背鰭毒棘'},
+    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'春季產卵前索餌積極，輕子線放長標'},
+    {n:'豆仔魚（烏魚苗）',t:'浮游磯釣',d:'河口與礁沙帶成群，麵包蟲細鉤'},
+    {n:'白達仔（黃錫鯛）',t:'磯釣',d:'春季礁沙交界，咬相輕，需靈敏標'},
+    {n:'花枝（軟絲）',t:'路亞/餌木',d:'春季產卵靠岸，藻礁區餌木egi有效'},
+    {n:'金花（黃雞魚）',t:'船釣/磯釣',d:'礁緣群游，鮮蝦或蝦仁餌'},
+    {n:'夢幻之魚·三line雞魚',t:'磯釣',d:'春季礁區，警覺性高需輕裝細線'},
   ];
   const summer=[
-    {n:'白帶魚',t:'船釣/岸拋',d:'夏秋洄游，傍晚到夜間咬況佳'},
-    {n:'竹梭（金梭）',t:'岸拋鐵板',d:'表層掠食，亮色假餌有效'},
-    {n:'紅甘（青甘）',t:'船釣鐵板',d:'外礁大物，拉力猛'},
-    {n:'石斑',t:'礁釣',d:'底棲，藏於礁縫，鮮蝦活餌佳'},
+    {n:'白帶魚',t:'船釣/岸拋',d:'夏秋洄游，傍晚到夜間咬況佳，秋刀魚段掛餌'},
+    {n:'竹梭（金梭）',t:'岸拋鐵板',d:'表層掠食，亮色鐵板或米諾快收'},
+    {n:'紅甘（青甘）',t:'船釣鐵板',d:'外礁大物，拉力猛，需強竿粗線'},
+    {n:'石斑',t:'礁釣',d:'底棲藏礁縫，鮮蝦活餌沉底'},
+    {n:'鬼頭刀（飛烏虎）',t:'船釣路亞',d:'夏季外海追流木與浮物，亮色鐵板'},
+    {n:'煙仔虎（齒鰆）',t:'船釣/岸拋',d:'高速掠食群，金屬亮片全速收線'},
+    {n:'四破/巴攏',t:'沙巴哯/胡亂鉤',d:'夏季近岸成群，多鉤仕掛快速上魚'},
+    {n:'石狗公（石頭魚）',t:'礁釣夜釣',d:'夜間礁區出沒，注意毒棘，肉質鮮美'},
+    {n:'牛尾（鯒魚）',t:'沙岸底釣',d:'沙泥底伏擊型，活蝦或小魚餌'},
+    {n:'剝皮魚（單棘魨）',t:'船釣',d:'礁區群游，肉質細，愛啄餌需小鉤'},
   ];
   const autumn=[
-    {n:'白帶魚',t:'船釣/岸拋',d:'秋季盛產，體型佳'},
-    {n:'花身雞魚',t:'沙岸底釣',d:'沙泥交界，群游'},
-    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'秋冬肥美，警覺性高需輕線'},
-    {n:'鬼頭刀',t:'船釣',d:'外海追餌，秋季迴游'},
+    {n:'白帶魚',t:'船釣/岸拋',d:'秋季盛產、體型最肥，夜釣化學燈誘集'},
+    {n:'花身雞魚',t:'沙岸底釣',d:'沙泥交界群游，蝦餌重鉛遠投'},
+    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'秋冬肥美，警覺性高需輕線細標'},
+    {n:'鬼頭刀',t:'船釣',d:'外海追餌，秋季迴游高峰'},
+    {n:'紅目鰱（大目仔）',t:'船釣夜釣',d:'秋夜礁區群棲，小鉤蝦餌'},
+    {n:'甘仔魚（瓜仔鯵）',t:'岸拋路亞',d:'秋季近岸追小魚，亮色鐵板或VIB'},
+    {n:'臭肚（象魚）',t:'磯釣',d:'秋季肥碩，海藻餌，處理小心毒棘'},
+    {n:'黃雞魚（雞魚）',t:'船釣/磯釣',d:'秋季礁緣群游，蝦餌穩定咬'},
+    {n:'成仔丁（星雞魚）',t:'沙岸/堤釣',d:'河口沙岸夜間索餌，青蟲蝦餌'},
   ];
   const winter=[
-    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬季第一主力，冷水浪區'},
-    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'冬季肥碩'},
-    {n:'加志（黃鰭鯛）',t:'磯釣',d:'礁沙交界，冬季咬況穩'},
-    {n:'石鯛',t:'磯釣',d:'夢幻魚種，硬殼餌，需重裝備'},
+    {n:'黑毛（瓜子鱲）',t:'磯釣',d:'冬季第一主力，冷水浪區白沫帶'},
+    {n:'白毛',t:'磯釣',d:'寒流後大咬，激流淺礁帶拉力猛'},
+    {n:'黑鯛（烏格）',t:'磯釣/筏釣',d:'冬季最肥碩，輕標細線放深'},
+    {n:'加志（黃鰭鯛）',t:'磯釣',d:'礁沙交界，冬季咬況穩定'},
+    {n:'石鯛',t:'磯釣',d:'夢幻魚種，藤壺/寄居蟹硬餌，需重裝備'},
+    {n:'嘉鱲（真鯛）',t:'船釣/磯釣',d:'冬季礁區大物，紅色喜氣的高級魚'},
+    {n:'烏魚',t:'流刺/沙岸',d:'冬至前後洄游南下，烏魚子季節'},
+    {n:'長腳蟹/牛港鱰',t:'船釣',d:'冬季外礁，需重磯或船釣裝備'},
+    {n:'臭肚（象魚）',t:'磯釣',d:'冬季仍可釣，海藻餌，注意毒棘'},
   ];
   if(month>=3 && month<=5) return {season:'春季', list:spring};
   if(month>=6 && month<=8) return {season:'夏季', list:summer};
@@ -847,6 +882,28 @@ function render(spot, data){
   html += `</div>
     <div class="note">🐠 依當前月份列出東北角與東海岸常見對象魚，實際魚種因地點、潮況而異。注意臭肚、石狗公等具毒棘魚種的處理安全。</div>
   </div>`;
+
+  // Windguru 風浪預報（依地點對應，只有這 3 個地點才顯示）
+  const WG_MAP = {
+    magang:    { id:'1347335', name:'馬崗' },
+    shitiping: { id:'1347336', name:'花蓮石梯坪' },
+    tamsui:    { id:'1347333', name:'三芝玉堂海釣場外' },
+  };
+  const wg = WG_MAP[spot.id];
+  if(wg){
+    html += `<div class="card span2">
+      <h2><span class="ic">🌬️</span>Windguru 風浪預報　<span style="color:var(--sub);font-weight:400">${wg.name}</span></h2>
+      <div class="wg-item">
+        <div class="wg-head">
+          <span class="wg-name">📍 ${wg.name}</span>
+          <a class="wg-link" href="https://www.windguru.cz/${wg.id}" target="_blank" rel="noopener">完整預報 ↗</a>
+        </div>
+        <iframe class="wg-frame" src="https://www.windguru.cz/widget-fcst-iframe.php?s=${wg.id}&m=100&wj=ms&tj=c&waj=m&odh=0&doh=24&fhours=48&hrsm=2&vt=forecasts&lng=1"
+          loading="lazy" scrolling="no"></iframe>
+      </div>
+      <div class="note">🌬️ 資料來源：Windguru（風速 m/s、浪高 m）。點「完整預報」看更長天期與細節。</div>
+    </div>`;
+  }
 
   // 未來預報（Yahoo 天氣風格：整週溫度尺度 + 範圍橫條）
   const allMax = Math.max(...daily.temperature_2m_max);
